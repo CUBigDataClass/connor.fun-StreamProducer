@@ -18,7 +18,7 @@ func main() {
 	auth := make(map[string]string)
 
 	if err := json.Unmarshal(data, &auth); err != nil {
-		panic(err)
+    panic(err)
 	}
 
 	config := oauth1.NewConfig(auth["consumerKey"], auth["consumerSecret"])
@@ -35,11 +35,14 @@ func main() {
 		StallWarnings: twitter.Bool(true),
 	}
 	stream, err := client.Streams.Filter(params)
+  if(err != nil) {
+    panic(err)
+  }
 
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
-    fmt.Printf("%s: %s\n", tweet.User.Name, tweet.Text)
-    fmt.Println(tweet.IDStr)
+		fmt.Printf("%s: %s\n", tweet.User.Name, tweet.Text)
+		fmt.Println(tweet.IDStr)
 	}
 
 	demux.HandleChan(stream.Messages)
