@@ -1,3 +1,9 @@
+// Copyright 2018 connor.fun. All rights reserved.
+// Use of this source code is governed by a GNU-style
+// license that can be found in the LICENSE file.
+
+// Tweets from bounding box -> kinesis stream
+
 package main
 
 import (
@@ -12,6 +18,7 @@ import (
 
 func main() {
 
+  // TODO: Move twitter keys into enviroment variables
 	twit, err := ioutil.ReadFile("./keys/twitter.json")
 	if err != nil {
 		panic(err)
@@ -31,13 +38,12 @@ func main() {
 
 	// Twitter client
 	client := twitter.NewClient(httpClient)
-
 	params := &twitter.StreamFilterParams{
-		Locations:     []string{"-74,40,-73,41"},
+    Locations:     []string{"-74,40,-73,41"}, // TODO: Move bounding box into command line args?
 		StallWarnings: twitter.Bool(true),
 	}
 
-	sess := session.Must(session.NewSession()) // MUST BE RUN IN EC2 or WITH LOCAL 'exports' setup
+	sess := session.Must(session.NewSession()) // MUST BE RUN IN EC2 or WITH LOCAL 'exports' SETUP
 	svc := kinesis.New(sess)
 
 	stream, err := client.Streams.Filter(params)
@@ -47,6 +53,7 @@ func main() {
 
 	partitionKey := "1"
 	streamName := "raw-tweets"
+  //TODO: Spin up kinesis stream if none exist?
 	streamInput := kinesis.PutRecordInput{Data: []byte(""), PartitionKey: &partitionKey, StreamName: &streamName}
 
 	demux := twitter.NewSwitchDemux()
