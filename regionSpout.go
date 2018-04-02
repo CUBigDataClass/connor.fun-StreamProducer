@@ -25,12 +25,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/CUBigDataClass/connor.fun-SectorGenerator"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
-	"io/ioutil"
 	"os"
+  "io/ioutil"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -40,14 +41,6 @@ import (
 * This contains all necessary data for any given location.
 * Fields are subject to change.
  */
-type locData struct {
-	Name  string `json:"name"`
-	South string `json:"south"`
-	West  string `json:"west"`
-	North string `json:"north"`
-	East  string `json:"east"`
-}
-
 type rawTweet struct {
 	ID     string `json:"ID"`
 	Text   string `json:"text"`
@@ -77,7 +70,7 @@ func main() {
 	locations := getLocations()
 	for _, loc := range locations {
 		// Create the bounding box string
-		box := []string{loc.East, loc.South, loc.West, loc.North}
+		box := []string{fmt.Sprint(loc.East), fmt.Sprint(loc.South), fmt.Sprint(loc.West), fmt.Sprint(loc.North)}
 		stringBox := strings.Join(box[:], ",")
 
 		// Open a stream for that location
@@ -123,6 +116,11 @@ func handleTweet(tweet *twitter.Tweet, regionName string, kini *kinesis.Kinesis)
 		panic(err)
 	}
 
+	fmt.Println(rawTweet{
+		ID:     tweet.IDStr,
+		Text:   tweet.Text,
+		Region: regionName})
+
 	// Kinesis params
 	partitionKey := "1"
 	streamName := "raw-tweets"
@@ -143,14 +141,19 @@ func handleTweet(tweet *twitter.Tweet, regionName string, kini *kinesis.Kinesis)
  * This reads from the JSON file to get all of the city information.
  * The creation of locations will occur without the knowledge of this file.
  */
-func getLocations() []locData {
-	raw, err := ioutil.ReadFile("./locations.json")
+func getLocations() []SectorGenerator.LocationData {
+	gen := SectorGenerator.NewGenerator()
+
+	data, err := ioutil.ReadFile("./locations.json")
+
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		panic(err)
 	}
 
-	var locations []locData
-	json.Unmarshal(raw, &locations)
-	return locations
+  err = gen.ParseLocationDataJSON(data)
+  if err != nil {
+    panic(err)
+  }
+
+	return gen.GetLocationData()
 }
