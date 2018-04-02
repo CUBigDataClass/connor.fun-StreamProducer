@@ -30,8 +30,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
+	"io/ioutil"
 	"os"
-  "io/ioutil"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -150,10 +150,10 @@ func getLocations() []SectorGenerator.LocationData {
 		panic(err)
 	}
 
-  err = gen.ParseLocationDataJSON(data)
-  if err != nil {
-    panic(err)
-  }
+	err = gen.ParseLocationDataJSON(data)
+	if err != nil {
+		panic(err)
+	}
 
 	return gen.GetLocationData()
 }
