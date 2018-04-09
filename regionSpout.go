@@ -25,7 +25,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/CUBigDataClass/connor.fun-SectorGenerator"
+	"github.com/CUBigDataClass/connor.fun-SectorGenerator/src"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/dghubble/go-twitter/twitter"
@@ -45,6 +45,7 @@ type rawTweet struct {
 	ID     string `json:"ID"`
 	Text   string `json:"text"`
 	Region string `json:"region"`
+  RegionJSON string `json:"regionData"`
 }
 
 /*
@@ -73,8 +74,14 @@ func main() {
 		box := []string{fmt.Sprint(loc.East), fmt.Sprint(loc.South), fmt.Sprint(loc.West), fmt.Sprint(loc.North)}
 		stringBox := strings.Join(box[:], ",")
 
+    regionData, err := json.Marshal(&loc)
+
+    if err != nil {
+      panic(err)
+    }
+
 		// Open a stream for that location
-		go openStream(stringBox, loc.Name, client, kini)
+		go openStream(stringBox, loc.Name, string(regionData), client, kini)
 	}
 
 	// Run until we are sent SIGINT (CTRL-C)
@@ -84,10 +91,10 @@ func main() {
 
 }
 
-func openStream(loc string, region string, client *twitter.Client, kini *kinesis.Kinesis) {
+func openStream(loc string, region string, regionData string, client *twitter.Client, kini *kinesis.Kinesis) {
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
-		handleTweet(tweet, region, kini)
+		handleTweet(tweet, region, regionData, kini)
 	}
 
 	// Twitter client
@@ -106,12 +113,13 @@ func openStream(loc string, region string, client *twitter.Client, kini *kinesis
 }
 
 // Tweet -> Kinesis
-func handleTweet(tweet *twitter.Tweet, regionName string, kini *kinesis.Kinesis) {
+func handleTweet(tweet *twitter.Tweet, regionName string, regionData string, kini *kinesis.Kinesis) {
 	// Make a new rawTweet
 	kiniData, err := json.Marshal(rawTweet{
 		ID:     tweet.IDStr,
 		Text:   tweet.Text,
-		Region: regionName})
+		Region: regionName,
+    RegionJSON: regionData})
 	if err != nil {
 		panic(err)
 	}
@@ -119,7 +127,8 @@ func handleTweet(tweet *twitter.Tweet, regionName string, kini *kinesis.Kinesis)
 	fmt.Println(rawTweet{
 		ID:     tweet.IDStr,
 		Text:   tweet.Text,
-		Region: regionName})
+		Region: regionName,
+    RegionJSON: regionData})
 
 	// Kinesis params
 	partitionKey := "1"
