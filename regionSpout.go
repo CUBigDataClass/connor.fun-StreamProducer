@@ -42,10 +42,10 @@ import (
 * Fields are subject to change.
  */
 type rawTweet struct {
-	ID     string `json:"ID"`
-	Text   string `json:"text"`
-	Region string `json:"region"`
-  RegionJSON string `json:"regionData"`
+	ID         string `json:"ID"`
+	Text       string `json:"text"`
+	Region     string `json:"region"`
+	RegionJSON string `json:"regionData"`
 }
 
 /*
@@ -74,11 +74,11 @@ func main() {
 		box := []string{fmt.Sprint(loc.East), fmt.Sprint(loc.South), fmt.Sprint(loc.West), fmt.Sprint(loc.North)}
 		stringBox := strings.Join(box[:], ",")
 
-    regionData, err := json.Marshal(&loc)
+		regionData, err := json.Marshal(&loc)
 
-    if err != nil {
-      panic(err)
-    }
+		if err != nil {
+			panic(err)
+		}
 
 		// Open a stream for that location
 		go openStream(stringBox, loc.Name, string(regionData), client, kini)
@@ -110,40 +110,16 @@ func openStream(loc string, region string, regionData string, client *twitter.Cl
 	}
 
 	demux.HandleChan(stream.Messages)
+	demux.All = func(message interface{}) {
+		fmt.Println(message)
+	}
 }
 
 // Tweet -> Kinesis
 func handleTweet(tweet *twitter.Tweet, regionName string, regionData string, kini *kinesis.Kinesis) {
-	// Make a new rawTweet
-	kiniData, err := json.Marshal(rawTweet{
-		ID:     tweet.IDStr,
-		Text:   tweet.Text,
-		Region: regionName,
-    RegionJSON: regionData})
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(rawTweet{
-		ID:     tweet.IDStr,
-		Text:   tweet.Text,
-		Region: regionName,
-    RegionJSON: regionData})
-
-	// Kinesis params
-	partitionKey := "1"
-	streamName := "raw-tweets"
-	streamInput := kinesis.PutRecordInput{
-		Data:         kiniData,
-		PartitionKey: &partitionKey,
-		StreamName:   &streamName}
-
-	_, kerr := kini.PutRecord(&streamInput)
-
-	if kerr != nil {
-		panic(kerr)
-	}
-
+	tweetJSON, _ := json.Marshal(tweet)
+	fmt.Println(string(tweetJSON)) // Put in kafka
+	// Update info that a new tweet has gone through
 }
 
 /*
