@@ -26,8 +26,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/CUBigDataClass/connor.fun-SectorGenerator/src"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	"io/ioutil"
@@ -63,9 +62,11 @@ func main() {
 	httpClient := config.Client(oauth1.NoContext, token)
 	client := twitter.NewClient(httpClient)
 
-	// AWS Kinesis session
-	sess := session.Must(session.NewSession())
-	kini := kinesis.New(sess)
+	// Kafka Producer
+	kini, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost"})
+	if err != nil {
+		panic(err)
+	}
 
 	// Get locations from file
 	locations := getLocations()
@@ -91,10 +92,10 @@ func main() {
 
 }
 
-func openStream(loc string, region string, regionData string, client *twitter.Client, kini *kinesis.Kinesis) {
+func openStream(loc string, region string, regionData string, client *twitter.Client, kafkaProd *kafka.Producer) {
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
-		handleTweet(tweet, region, regionData, kini)
+		handleTweet(tweet, region, kafkaProd)
 	}
 
 	// Twitter client
@@ -116,10 +117,17 @@ func openStream(loc string, region string, regionData string, client *twitter.Cl
 }
 
 // Tweet -> Kinesis
-func handleTweet(tweet *twitter.Tweet, regionName string, regionData string, kini *kinesis.Kinesis) {
+func handleTweet(tweet *twitter.Tweet, regionName string, kafkaProd *kafka.Producer) {
 	tweetJSON, _ := json.Marshal(tweet)
-	fmt.Println(string(tweetJSON)) // Put in kafka
+	fmt.Println(regionName, tweet.Text)
+
+	topic := "raw-tweets"
+
+	kafkaProd.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		Value:          []byte(tweetJSON)}, nil)
 	// Update info that a new tweet has gone through
+
 }
 
 /*
