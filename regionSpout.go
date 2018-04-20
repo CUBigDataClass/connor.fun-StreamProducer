@@ -63,7 +63,7 @@ func main() {
 	client := twitter.NewClient(httpClient)
 
 	// Kafka Producer
-	kini, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost"})
+	kini, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "54.68.207.33"})
 	if err != nil {
 		panic(err)
 	}
