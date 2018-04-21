@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"github.com/CUBigDataClass/connor.fun-SectorGenerator/src"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go/service/comprehend"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	"io/ioutil"
@@ -42,10 +42,10 @@ import (
 * Fields are subject to change.
  */
 type rawTweet struct {
-	ID     string `json:"ID"`
-	Text   string `json:"text"`
-	Region string `json:"region"`
-  RegionJSON string `json:"regionData"`
+	ID         string `json:"ID"`
+	Text       string `json:"text"`
+	Region     string `json:"region"`
+	RegionJSON string `json:"regionData"`
 }
 
 /*
@@ -63,9 +63,11 @@ func main() {
 	httpClient := config.Client(oauth1.NoContext, token)
 	client := twitter.NewClient(httpClient)
 
+	fmt.Println("[")
+
 	// AWS Kinesis session
 	sess := session.Must(session.NewSession())
-	kini := kinesis.New(sess)
+	kini := comprehend.New(sess)
 
 	// Get locations from file
 	locations := getLocations()
@@ -74,11 +76,11 @@ func main() {
 		box := []string{fmt.Sprint(loc.East), fmt.Sprint(loc.South), fmt.Sprint(loc.West), fmt.Sprint(loc.North)}
 		stringBox := strings.Join(box[:], ",")
 
-    regionData, err := json.Marshal(&loc)
+		regionData, err := json.Marshal(&loc)
 
-    if err != nil {
-      panic(err)
-    }
+		if err != nil {
+			panic(err)
+		}
 
 		// Open a stream for that location
 		go openStream(stringBox, loc.Name, string(regionData), client, kini)
@@ -91,7 +93,7 @@ func main() {
 
 }
 
-func openStream(loc string, region string, regionData string, client *twitter.Client, kini *kinesis.Kinesis) {
+func openStream(loc string, region string, regionData string, client *twitter.Client, kini *comprehend.Comprehend) {
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
 		handleTweet(tweet, region, regionData, kini)
@@ -113,36 +115,17 @@ func openStream(loc string, region string, regionData string, client *twitter.Cl
 }
 
 // Tweet -> Kinesis
-func handleTweet(tweet *twitter.Tweet, regionName string, regionData string, kini *kinesis.Kinesis) {
+func handleTweet(tweet *twitter.Tweet, regionName string, regionData string, kini *comprehend.Comprehend) {
 	// Make a new rawTweet
-	kiniData, err := json.Marshal(rawTweet{
-		ID:     tweet.IDStr,
-		Text:   tweet.Text,
-		Region: regionName,
-    RegionJSON: regionData})
-	if err != nil {
-		panic(err)
-	}
+	tweetJSON, _ := json.Marshal(tweet)
 
-	fmt.Println(rawTweet{
-		ID:     tweet.IDStr,
-		Text:   tweet.Text,
-		Region: regionName,
-    RegionJSON: regionData})
+	lang := "en"
 
-	// Kinesis params
-	partitionKey := "1"
-	streamName := "raw-tweets"
-	streamInput := kinesis.PutRecordInput{
-		Data:         kiniData,
-		PartitionKey: &partitionKey,
-		StreamName:   &streamName}
+	sent, _ := kini.DetectSentiment(&comprehend.DetectSentimentInput{Text: &tweet.Text, LanguageCode: &lang})
 
-	_, kerr := kini.PutRecord(&streamInput)
+	sentJSON, _ := json.Marshal(sent)
 
-	if kerr != nil {
-		panic(kerr)
-	}
+	fmt.Println("{\"tweet\":" + string(tweetJSON) + "}, {\"sentiment\":" + string(sentJSON) + "},") //, string(tweetJSON))
 
 }
 
