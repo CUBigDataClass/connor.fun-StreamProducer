@@ -25,7 +25,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/CUBigDataClass/connor.fun-SectorGenerator/src"
+	"github.com/CUBigDataClass/connor.fun-SectorGenerator"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/comprehend"
 	"github.com/dghubble/go-twitter/twitter"
