@@ -32,8 +32,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
+	"time"
 )
 
 /*
@@ -70,7 +73,13 @@ func main() {
 
 	// Get locations from file
 	locations := getLocations()
-	for _, loc := range locations {
+
+	var msg [25]uint64
+	for i := range locations {
+		msg[i] = 0
+	}
+
+	for i, loc := range locations {
 		// Create the bounding box string
 		box := []string{fmt.Sprint(loc.East), fmt.Sprint(loc.South), fmt.Sprint(loc.West), fmt.Sprint(loc.North)}
 		stringBox := strings.Join(box[:], ",")
@@ -82,7 +91,29 @@ func main() {
 		}
 
 		// Open a stream for that location
-		go openStream(stringBox, loc.Name, string(regionData), client, kini)
+		go openStream(stringBox, loc.ID, string(regionData), client, kini, &msg[i])
+
+		fmt.Println("Opening Stream for " + loc.ID)
+
+		time.Sleep(30 * time.Second)
+	}
+
+	// Loop over counts from each channel, see if any have fallen by the wayside
+	for {
+		time.Sleep(30 * time.Second)
+
+		fmt.Print("\033[H\033[2J")
+		fmt.Println("In the last 30 seconds:")
+
+		for i, loc := range locations {
+			current := atomic.LoadUint64(&msg[i])
+			fmt.Println(loc.ID + ":\t" + strconv.FormatUint(current, 10))
+			atomic.StoreUint64(&msg[i], 0)
+
+			if current == 0 {
+				// Stop current channel, restart stream
+			}
+		}
 	}
 
 	// Run until we are sent SIGINT (CTRL-C)
@@ -92,10 +123,10 @@ func main() {
 
 }
 
-func openStream(loc string, region string, regionData string, client *twitter.Client, kafkaProd *kafka.Producer) {
+func openStream(loc string, region string, regionData string, client *twitter.Client, kafkaProd *kafka.Producer, channel *uint64) {
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
-		handleTweet(tweet, region, kafkaProd)
+		handleTweet(tweet, region, kafkaProd, channel)
 	}
 
 	// Twitter client
@@ -117,9 +148,10 @@ func openStream(loc string, region string, regionData string, client *twitter.Cl
 }
 
 // Tweet -> Kinesis
-func handleTweet(tweet *twitter.Tweet, regionName string, kafkaProd *kafka.Producer) {
+func handleTweet(tweet *twitter.Tweet, regionName string, kafkaProd *kafka.Producer, channel *uint64) {
 	tweetJSON, _ := json.Marshal(tweet)
-	fmt.Println(regionName, tweet.Text)
+
+	atomic.AddUint64(channel, 1)
 
 	topic := "raw-tweets"
 
