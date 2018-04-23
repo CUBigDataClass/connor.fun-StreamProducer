@@ -25,7 +25,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/CUBigDataClass/connor.fun-SectorGenerator/src"
+	"github.com/CUBigDataClass/connor.fun-SectorGenerator"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
