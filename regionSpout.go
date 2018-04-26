@@ -153,7 +153,7 @@ func handleTweet(tweet *twitter.Tweet, regionName string, kafkaProd *kafka.Produ
 
 	atomic.AddUint64(channel, 1)
 
-	topic := "raw-tweets"
+	topic := "raw-tweets-" + regionName
 
 	kafkaProd.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
@@ -166,8 +166,8 @@ func handleTweet(tweet *twitter.Tweet, regionName string, kafkaProd *kafka.Produ
  * This reads from the JSON file to get all of the city information.
  * The creation of locations will occur without the knowledge of this file.
  */
-func getLocations() []SectorGenerator.LocationData {
-	gen := SectorGenerator.NewGenerator()
+func getLocations() []generator.LocationData {
+	gen := generator.NewGenerator()
 
 	data, err := ioutil.ReadFile("./locations.json")
 
